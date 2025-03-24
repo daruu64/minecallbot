@@ -141,6 +141,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         logger.debug(f"Получено обычное сообщение: {text}")
 
+# Add this command to let users register
+async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    
+    # You'll need to create this dictionary in your application
+    if 'registered_users' not in context.bot_data:
+        context.bot_data['registered_users'] = {}
+    
+    if chat_id not in context.bot_data['registered_users']:
+        context.bot_data['registered_users'][chat_id] = set()
+    
+    context.bot_data['registered_users'][chat_id].add(user_id)
+    await update.message.reply_text("✅ Вы зарегистрированы для упоминаний!")
+
 def main() -> None:
     """Запуск бота."""
     # Создаем экземпляр приложения
@@ -149,6 +164,7 @@ def main() -> None:
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("register", register))
     
     # Регистрируем обработчик текстовых сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
