@@ -8,7 +8,8 @@ Telegram бот, который отслеживает ключевое слов
 
 import logging
 import os
-from telegram import Update, Chat
+import random
+from telegram import Update, Chat, ParseMode
 from telegram.ext import Application, MessageHandler, CommandHandler, ContextTypes, filters
 from telegram.error import TelegramError
 
@@ -19,21 +20,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Безопасное хранение токена (замените на свой способ хранения)
-API_TOKEN = '7223856263:AAHTo0KHmi-i0NstCJNA5WymvUaFMoLKKsM'
+# Безопасное хранение токена через переменные окружения
+import os
+from dotenv import load_dotenv
+
+# Загружаем переменные из .env файла (если есть)
+load_dotenv()
+
+# Получаем токен из переменных окружения или используем запасной вариант
+API_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", '7223856263:AAHTo0KHmi-i0NstCJNA5WymvUaFMoLKKsM')
+
+# Варианты сообщений для разнообразия
+CALL_MESSAGES = [
+    "🚨 *Внимание\!* Все сюда\! 🚨",
+    "🔊 *Всем собраться\!* 📣",
+    "📢 *Срочный сбор\!* ⚡",
+    "🔔 *Общий сбор\!* 🆘",
+    "🎯 *Созываю всех\!* 🎯"
+]
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
-    await update.message.reply_text('Привет! 👋 Я бот, который отслеживает ключевое слово "Калл".')
+    await update.message.reply_text('👋 *Привет\!* Я бот, который отслеживает ключевое слово "*Калл*" 🤖', 
+                                   parse_mode=ParseMode.MARKDOWN_V2)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /help."""
     help_text = (
-        '📋 Инструкция по использованию:\n\n'
-        '• Напишите "Калл" для созыва всех пользователей\n'
-        '• Напишите "Калл [текст]" для созыва с вашим сообщением\n'
-        '• Слово "калл" в любом сообщении также активирует бота'
+        '📋 *Инструкция по использованию:*\n\n'
+        '• Напишите "*Калл*" для созыва всех пользователей\n'
+        '• Напишите "*Калл \[текст\]*" для созыва с вашим сообщением\n'
+        '• Слово "*калл*" в любом сообщении также активирует бота'
     )
-    await update.message.reply_text(help_text)
+    await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN_V2)
 
 async def get_all_members(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> list:
     """Получение списка всех пользователей в чате."""
@@ -84,9 +103,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         if members:
             mention_text = ", ".join(mentions)
-            await update.message.reply_text(f"🔔 Созываю всех: {mention_text}")
+            # Выбираем случайное сообщение из списка вариантов
+            call_message = random.choice(CALL_MESSAGES)
+            response = f"{'➖'*10}\n{call_message}\n\n👥 *Участники:*\n{mention_text}\n{'➖'*10}"
+            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN_V2)
         else:
-            await update.message.reply_text("⚠️ Не удалось получить список пользователей.")
+            await update.message.reply_text("⚠️ *Не удалось получить список пользователей\.* 😔", 
+                                          parse_mode=ParseMode.MARKDOWN_V2)
     
     # Проверка на шаблон "Калл [текст]"
     elif text.lower().startswith("калл ") and len(text) > 5:
@@ -97,14 +120,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         if members:
             mention_text = ", ".join(mentions)
-            await update.message.reply_text(f"📢 Призыв: {additional_text}\n👥 {mention_text}")
+            # Экранируем спецсимволы Markdown в additional_text
+            escaped_text = additional_text.replace(".", "\\.").replace("-", "\\-").replace("!", "\\!").replace("(", "\\(").replace(")", "\\)")
+            response = (f"{'➖'*10}\n"
+                       f"📢 *Призыв:* _{escaped_text}_\n\n"
+                       f"👥 *Участники:*\n{mention_text}\n"
+                       f"{'➖'*10}")
+            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN_V2)
         else:
-            await update.message.reply_text(f"⚠️ Не удалось получить список пользователей для призыва: {additional_text}")
+            await update.message.reply_text(f"⚠️ *Не удалось получить список пользователей для призыва\.* 😔\n\n"
+                                         f"_Текст призыва:_ {additional_text}", 
+                                         parse_mode=ParseMode.MARKDOWN_V2)
     
     # Проверяем, содержит ли сообщение ключевое слово (регистронезависимо)
     elif "калл" in text.lower():
         logger.info(f"Обнаружено ключевое слово в сообщении: {text}")
-        await update.message.reply_text('🔊 Созвать всех!')
+        await update.message.reply_text('📢 🔊 *Созываю всех\!* Внимание, срочный сбор\! 🚨 🔥', 
+                                      parse_mode=ParseMode.MARKDOWN_V2)
     else:
         logger.debug(f"Получено обычное сообщение: {text}")
 
