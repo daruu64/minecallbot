@@ -7,6 +7,7 @@ Telegram бот, который отслеживает ключевое слов
 """
 
 import logging
+import os
 from telegram import Update, Chat
 from telegram.ext import Application, MessageHandler, CommandHandler, ContextTypes, filters
 from telegram.error import TelegramError
@@ -18,16 +19,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Используйте ваш API_TOKEN, полученный от @BotFather
+# Безопасное хранение токена (замените на свой способ хранения)
 API_TOKEN = '7223856263:AAHTo0KHmi-i0NstCJNA5WymvUaFMoLKKsM'
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
-    await update.message.reply_text('Привет! Я бот, который отслеживает ключевое слово "Калл".')
+    await update.message.reply_text('Привет! 👋 Я бот, который отслеживает ключевое слово "Калл".')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /help."""
-    await update.message.reply_text('Напишите сообщение, содержащее слово "Калл", и я отвечу. Или напишите "ТестКалл", чтобы созвать всех пользователей.')
+    help_text = (
+        '📋 Инструкция по использованию:\n\n'
+        '• Напишите "Калл" для созыва всех пользователей\n'
+        '• Напишите "Калл [текст]" для созыва с вашим сообщением\n'
+        '• Слово "калл" в любом сообщении также активирует бота'
+    )
+    await update.message.reply_text(help_text)
 
 async def get_all_members(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> list:
     """Получение списка всех пользователей в чате."""
@@ -55,34 +61,50 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """
     text = update.message.text
 
+    # Получаем список пользователей для упоминания
+    async def get_mentions():
+        members = await get_all_members(context, update.effective_chat.id)
+        mentions = [f"@{member.username}" for member in members if member.username]
+        
+        # Если есть пользователи без username, добавляем их по имени
+        for member in members:
+            if not member.username:
+                name = member.first_name
+                if member.last_name:
+                    name += f" {member.last_name}"
+                mentions.append(name)
+                
+        return mentions, members
+
     # Проверка на точное соответствие сообщения "Калл"
-    if text == "Калл":
+    if text.lower() == "калл":
         logger.info("Запрошен список всех пользователей")
         
-        # Получаем список пользователей
-        members = await get_all_members(context, update.effective_chat.id)
+        mentions, members = await get_mentions()
         
         if members:
-            # Формируем сообщение с упоминаниями всех пользователей
-            mentions = [f"@{member.username}" for member in members if member.username]
-            
-            # Если есть пользователи без username, добавляем их по имени
-            for member in members:
-                if not member.username:
-                    name = member.first_name
-                    if member.last_name:
-                        name += f" {member.last_name}"
-                    mentions.append(name)
-            
             mention_text = ", ".join(mentions)
-            await update.message.reply_text(f"Вызываю всех: {mention_text}")
+            await update.message.reply_text(f"🔔 Созываю всех: {mention_text}")
         else:
-            await update.message.reply_text("Не удалось получить список пользователей.")
+            await update.message.reply_text("⚠️ Не удалось получить список пользователей.")
+    
+    # Проверка на шаблон "Калл [текст]"
+    elif text.lower().startswith("калл ") and len(text) > 5:
+        additional_text = text[5:]  # Текст после "Калл "
+        logger.info(f"Запрошен список с дополнительным текстом: {additional_text}")
+        
+        mentions, members = await get_mentions()
+        
+        if members:
+            mention_text = ", ".join(mentions)
+            await update.message.reply_text(f"📢 Призыв: {additional_text}\n👥 {mention_text}")
+        else:
+            await update.message.reply_text(f"⚠️ Не удалось получить список пользователей для призыва: {additional_text}")
     
     # Проверяем, содержит ли сообщение ключевое слово (регистронезависимо)
     elif "калл" in text.lower():
         logger.info(f"Обнаружено ключевое слово в сообщении: {text}")
-        await update.message.reply_text('Созвать всех')
+        await update.message.reply_text('🔊 Созвать всех!')
     else:
         logger.debug(f"Получено обычное сообщение: {text}")
 
@@ -99,7 +121,7 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Запускаем бота до нажатия Ctrl-C
-    logger.info("Бот запущен")
+    logger.info("🤖 Бот запущен")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
