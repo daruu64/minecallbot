@@ -9,50 +9,60 @@ Telegram бот, который отслеживает ключевое слов
 import logging
 import os
 import random
-from telegram import Update, Chat, ParseMode
+from telegram import Update, Chat
 from telegram.ext import Application, MessageHandler, CommandHandler, ContextTypes, filters
 from telegram.error import TelegramError
 
 # Настройка логирования
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levellevel)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Безопасное хранение токена через переменные окружения
-import os
-from dotenv import load_dotenv
+# Безопасное хранение токена (замените на свой способ хранения)
+API_TOKEN = '7223856263:AAHTo0KHmi-i0NstCJNA5WymvUaFMoLKKsM'
 
-# Загружаем переменные из .env файла (если есть)
-load_dotenv()
-
-# Получаем токен из переменных окружения или используем запасной вариант
-API_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", '7223856263:AAHTo0KHmi-i0NstCJNA5WymvUaFMoLKKsM')
-
-# Варианты сообщений для разнообразия
+# Шаблоны сообщений для разнообразия
 CALL_MESSAGES = [
-    "🚨 *Внимание\!* Все сюда\! 🚨",
-    "🔊 *Всем собраться\!* 📣",
-    "📢 *Срочный сбор\!* ⚡",
-    "🔔 *Общий сбор\!* 🆘",
-    "🎯 *Созываю всех\!* 🎯"
+    "🚨 *ВНИМАНИЕ!* Срочный сбор всех участников! 🚨",
+    "📢 🔊 *Созываю всех!* Внимание, срочный сбор! 🔥",
+    "⚡️ *Всем собраться!* Важное сообщение! ⚡️",
+    "🎯 *Общий сбор!* Все на связь! 📡",
+    "🔔 *Тревога!* Все в чат! 🔔"
 ]
+
+CALL_WITH_TEXT_TEMPLATES = [
+    "📣 *ОБЪЯВЛЕНИЕ:* _{additional_text}_ 📣\n\n👥 {mention_text}",
+    "🚩 *ВАЖНО:* _{additional_text}_ 🚩\n\n👋 {mention_text}",
+    "🎙️ *ПРИЗЫВ:* _{additional_text}_ 🎙️\n\n⭐️ {mention_text}",
+    "📌 *СООБЩЕНИЕ:* _{additional_text}_ 📌\n\n👇 {mention_text}",
+    "🔥 *СРОЧНО:* _{additional_text}_ 🔥\n\n👀 {mention_text}"
+]
+
+CALL_MENTION_TEMPLATES = [
+    "🔔 *Созываю всех:* {mention_text} 👋",
+    "📢 *Внимание! Все сюда:* {mention_text} ⚡️",
+    "🚨 *Общий сбор:* {mention_text} 🔥",
+    "📣 *Всем явиться:* {mention_text} 🎯",
+    "⭐️ *Вызываются:* {mention_text} 📌"
+]
+
+SEPARATOR = "\n➖➖➖➖➖➖➖➖➖➖➖➖\n"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
-    await update.message.reply_text('👋 *Привет\!* Я бот, который отслеживает ключевое слово "*Калл*" 🤖', 
-                                   parse_mode=ParseMode.MARKDOWN_V2)
+    await update.message.reply_text('👋 *Привет!* Я бот, который отслеживает ключевое слово "Калл" 🔍', parse_mode="Markdown")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /help."""
     help_text = (
         '📋 *Инструкция по использованию:*\n\n'
-        '• Напишите "*Калл*" для созыва всех пользователей\n'
-        '• Напишите "*Калл \[текст\]*" для созыва с вашим сообщением\n'
-        '• Слово "*калл*" в любом сообщении также активирует бота'
+        '• Напишите "Калл" для созыва всех пользователей 📢\n'
+        '• Напишите "Калл [текст]" для созыва с вашим сообщением 📝\n'
+        '• Слово "калл" в любом сообщении также активирует бота 🔍'
     )
-    await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN_V2)
+    await update.message.reply_text(help_text, parse_mode="Markdown")
 
 async def get_all_members(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> list:
     """Получение списка всех пользователей в чате."""
@@ -103,13 +113,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         if members:
             mention_text = ", ".join(mentions)
-            # Выбираем случайное сообщение из списка вариантов
-            call_message = random.choice(CALL_MESSAGES)
-            response = f"{'➖'*10}\n{call_message}\n\n👥 *Участники:*\n{mention_text}\n{'➖'*10}"
-            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN_V2)
+            response = f"{SEPARATOR}{random.choice(CALL_MENTION_TEMPLATES).format(mention_text=mention_text)}{SEPARATOR}"
+            await update.message.reply_text(response, parse_mode="Markdown")
         else:
-            await update.message.reply_text("⚠️ *Не удалось получить список пользователей\.* 😔", 
-                                          parse_mode=ParseMode.MARKDOWN_V2)
+            await update.message.reply_text("⚠️ *Не удалось получить список пользователей.* ⚠️", parse_mode="Markdown")
     
     # Проверка на шаблон "Калл [текст]"
     elif text.lower().startswith("калл ") and len(text) > 5:
@@ -120,23 +127,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         if members:
             mention_text = ", ".join(mentions)
-            # Экранируем спецсимволы Markdown в additional_text
-            escaped_text = additional_text.replace(".", "\\.").replace("-", "\\-").replace("!", "\\!").replace("(", "\\(").replace(")", "\\)")
-            response = (f"{'➖'*10}\n"
-                       f"📢 *Призыв:* _{escaped_text}_\n\n"
-                       f"👥 *Участники:*\n{mention_text}\n"
-                       f"{'➖'*10}")
-            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN_V2)
+            template = random.choice(CALL_WITH_TEXT_TEMPLATES)
+            response = f"{SEPARATOR}{template.format(additional_text=additional_text, mention_text=mention_text)}{SEPARATOR}"
+            await update.message.reply_text(response, parse_mode="Markdown")
         else:
-            await update.message.reply_text(f"⚠️ *Не удалось получить список пользователей для призыва\.* 😔\n\n"
-                                         f"_Текст призыва:_ {additional_text}", 
-                                         parse_mode=ParseMode.MARKDOWN_V2)
+            await update.message.reply_text(f"⚠️ *Не удалось получить список пользователей для призыва:* _{additional_text}_ ⚠️", parse_mode="Markdown")
     
     # Проверяем, содержит ли сообщение ключевое слово (регистронезависимо)
     elif "калл" in text.lower():
         logger.info(f"Обнаружено ключевое слово в сообщении: {text}")
-        await update.message.reply_text('📢 🔊 *Созываю всех\!* Внимание, срочный сбор\! 🚨 🔥', 
-                                      parse_mode=ParseMode.MARKDOWN_V2)
+        response = f"{SEPARATOR}{random.choice(CALL_MESSAGES)}{SEPARATOR}"
+        await update.message.reply_text(response, parse_mode="Markdown")
     else:
         logger.debug(f"Получено обычное сообщение: {text}")
 
@@ -153,7 +154,7 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Запускаем бота до нажатия Ctrl-C
-    logger.info("🤖 Бот запущен")
+    logger.info("🤖 Бот запущен и готов к работе! 🚀")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
